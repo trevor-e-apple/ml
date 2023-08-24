@@ -4,7 +4,7 @@ pub fn add(left: usize, right: usize) -> usize {
 
 /// quick and dirty RNG
 pub struct Rng {
-    state: u64
+    state: u64,
 }
 
 impl Rng {
