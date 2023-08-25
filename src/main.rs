@@ -8,11 +8,10 @@ use std::{
 
 use plotters::{
     prelude::{
-        BitMapBackend, ChartBuilder, Circle, DrawingBackend, EmptyElement,
-        IntoDrawingArea, Text,
+        BitMapBackend, ChartBuilder, Circle, EmptyElement, IntoDrawingArea,
     },
-    series::{LineSeries, PointSeries},
-    style::{IntoFont, RED, WHITE},
+    series::PointSeries,
+    style::{IntoFont, BLUE, RED, WHITE},
 };
 
 use lib::Rng;
@@ -27,16 +26,15 @@ fn main() {
     }
 
     // Create a 800*600 bitmap and start drawing
-    let mut root =
-        BitMapBackend::new("test/1.png", (300, 200)).into_drawing_area();
-    root.fill(&WHITE);
+    let root =
+        BitMapBackend::new("test/xor.png", (800, 600)).into_drawing_area();
+    root.fill(&WHITE).unwrap();
     let mut chart_builder = ChartBuilder::on(&root);
-    chart_builder
-        .caption("This is our first plot", ("sans-serif", 40).into_font());
+    chart_builder.caption("XOR", ("sans-serif", 40).into_font());
     chart_builder.x_label_area_size(20);
     chart_builder.y_label_area_size(40);
     let mut chart =
-        chart_builder.build_cartesian_2d(0f32..10f32, 0f32..10f32).unwrap();
+        chart_builder.build_cartesian_2d(-1f32..2f32, -1f32..2f32).unwrap();
 
     chart
         .configure_mesh()
@@ -46,29 +44,54 @@ fn main() {
         .draw()
         .unwrap();
 
-    // draw something in the drawing area
+    // draw point series
     chart
-        .draw_series(LineSeries::new(
-            vec![(0.0, 0.0), (5.0, 5.0), (8.0, 7.0)],
+        .draw_series(PointSeries::of_element(
+            vec![(0.0, 0.0)],
+            5,
             &RED,
+            &|c, s, st| {
+                return EmptyElement::at(c)
+                    + Circle::new((0, 0), s, st.filled());
+            },
         ))
         .unwrap();
 
-    // draw point series
-    chart.draw_series(PointSeries::of_element(
-        vec![(0.0, 0.0), (5.0, 5.0), (8.0, 7.0)],
-        5,
-        &RED,
-        &|c, s, st| {
-            return EmptyElement::at(c)
-                + Circle::new((0, 0), s, st.filled())
-                + Text::new(
-                    format!("{:?}", c),
-                    (10, 0),
-                    ("sans-serif", 10).into_font(),
-                );
-        },
-    )).unwrap();
+    chart
+        .draw_series(PointSeries::of_element(
+            vec![(0.0, 1.0)],
+            5,
+            &BLUE,
+            &|c, s, st| {
+                return EmptyElement::at(c)
+                    + Circle::new((0, 0), s, st.filled());
+            },
+        ))
+        .unwrap();
+
+    chart
+        .draw_series(PointSeries::of_element(
+            vec![(1.0, 0.0)],
+            5,
+            &BLUE,
+            &|c, s, st| {
+                return EmptyElement::at(c)
+                    + Circle::new((0, 0), s, st.filled());
+            },
+        ))
+        .unwrap();
+
+    chart
+        .draw_series(PointSeries::of_element(
+            vec![(1.0, 1.0)],
+            5,
+            &RED,
+            &|c, s, st| {
+                return EmptyElement::at(c)
+                    + Circle::new((0, 0), s, st.filled());
+            },
+        ))
+        .unwrap();
 
     root.present().unwrap();
 }
