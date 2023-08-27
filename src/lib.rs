@@ -1,3 +1,5 @@
+use std::f64::consts::PI;
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
@@ -20,4 +22,15 @@ impl Rng {
 
         self.state
     }
+}
+
+/// function for sampling from a normal distribution using a random number
+/// generator that generates a uniform distribution
+pub fn box_muller(rng: &mut  Rng, mean: f64, std_dev: f64) -> f64 {
+    let u1 = (rng.rand() as f64) / (std::u64::MAX as f64);
+    let u2 = (rng.rand() as f64) / (std::u64::MAX as f64);
+
+    let z1 = (-2.0 * u1.ln()).sqrt() * (2.0 * PI * u2).cos();
+
+    z1 * std_dev + mean
 }

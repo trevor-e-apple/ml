@@ -14,7 +14,7 @@ use plotters::{
     style::{IntoFont, BLUE, RED, WHITE},
 };
 
-use lib::Rng;
+use lib::{Rng, box_muller};
 
 fn main() {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
@@ -24,6 +24,13 @@ fn main() {
         let random = rng.rand();
         println!("{random}");
     }
+
+    for i in 0..5 {
+        let sample = box_muller(&mut rng, 5.0, 2.5);
+        println!("sample {i}: {sample}");
+    }
+
+
 
     // Create a 800*600 bitmap and start drawing
     let root =
