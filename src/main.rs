@@ -16,6 +16,19 @@ use plotters::{
 
 use lib::{Rng, box_muller};
 
+fn gen_xor_data(rng: &mut Rng, mu: &[f32; 2], std_dev: f32, samples: usize) -> Vec<(f32, f32)> {
+    let mut result: Vec<(f32, f32)> = Vec::with_capacity(samples);
+
+    for _ in 0..samples {
+        let x = box_muller(rng, mu[0] as f64, std_dev as f64);
+        let y = box_muller(rng, mu[1] as f64, std_dev as f64);
+
+        result.push((x as f32, y as f32));
+    }
+
+    result
+}
+
 fn main() {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let mut rng = Rng::new(now.as_secs());
@@ -30,6 +43,10 @@ fn main() {
         println!("sample {i}: {sample}");
     }
 
+    let zero_zero_data = gen_xor_data(&mut rng, &[0.0, 0.0], 0.1, 100);
+    let zero_one_data = gen_xor_data(&mut rng, &[0.0, 1.0], 0.1, 100);
+    let one_zero_data = gen_xor_data(&mut rng, &[1.0, 0.0], 0.1, 100);
+    let one_one_data = gen_xor_data(&mut rng, &[1.0, 1.0], 0.1, 100);
 
 
     // Create a 800*600 bitmap and start drawing
@@ -54,7 +71,7 @@ fn main() {
     // draw point series
     chart
         .draw_series(PointSeries::of_element(
-            vec![(0.0, 0.0)],
+            zero_zero_data,
             5,
             &RED,
             &|c, s, st| {
@@ -66,7 +83,7 @@ fn main() {
 
     chart
         .draw_series(PointSeries::of_element(
-            vec![(0.0, 1.0)],
+            zero_one_data,
             5,
             &BLUE,
             &|c, s, st| {
@@ -78,7 +95,7 @@ fn main() {
 
     chart
         .draw_series(PointSeries::of_element(
-            vec![(1.0, 0.0)],
+            one_zero_data,
             5,
             &BLUE,
             &|c, s, st| {
@@ -90,7 +107,7 @@ fn main() {
 
     chart
         .draw_series(PointSeries::of_element(
-            vec![(1.0, 1.0)],
+            one_one_data,
             5,
             &RED,
             &|c, s, st| {
