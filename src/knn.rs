@@ -1,3 +1,4 @@
+use core::panic;
 use std::collections::HashMap;
 
 type Class = i64;
@@ -9,6 +10,9 @@ pub struct Knn {
 
 impl Knn {
     pub fn new(k: usize, data: Vec<(Class, Vec<f64>)>) -> Self {
+        if k == 0 {
+            panic!();
+        }
         Self {k, data}
     }
 
@@ -23,6 +27,7 @@ impl Knn {
     }
 
     pub fn predict_class(&self, point: Vec<f64>) -> Class {
+        #[derive(Clone, Copy)]
         struct NeighborData {
             distance: f64,
             class: i64,
@@ -38,7 +43,30 @@ impl Knn {
 
         // find the k nearest neighbors
         for datum in &self.data[self.k..] {
+            let class = datum.0;
+            let distance = Self::calc_distance(&point, &datum.1);
 
+            let (farthest_neighbor_index, farthest_neighbor) = {
+                let mut farthest_neighbor_index = 0;
+                let mut farthest_neighbor = match nearest_neighbors.get(farthest_neighbor_index) {
+                    Some(neighbor) => *neighbor,
+                    None => panic!(),
+                };
+
+                for (index, near_neighbor) in nearest_neighbors.iter().enumerate() {
+                    if near_neighbor.distance > farthest_neighbor.distance {
+                        farthest_neighbor_index = index;
+                        farthest_neighbor = *near_neighbor;
+                    }
+                }
+
+                (farthest_neighbor_index, farthest_neighbor)
+            };
+
+            if distance < farthest_neighbor.distance {
+                nearest_neighbors.swap_remove(farthest_neighbor_index);
+                nearest_neighbors.push( NeighborData { distance, class });
+            }
         }
 
         // map the classes to the neighbor count
