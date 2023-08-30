@@ -1,15 +1,15 @@
 use core::panic;
 use std::collections::HashMap;
 
-type Class = i64;
+pub type Class = i64;
 
 pub struct Knn {
     k: usize,
-    pub data: Vec<(Class, Vec<f64>)>,
+    pub data: Vec<(Class, Vec<f32>)>,
 }
 
 impl Knn {
-    pub fn new(k: usize, data: Vec<(Class, Vec<f64>)>) -> Self {
+    pub fn new(k: usize, data: Vec<(Class, Vec<f32>)>) -> Self {
         if k == 0 {
             panic!();
         }
@@ -17,7 +17,7 @@ impl Knn {
     }
 
     // TODO: make this replaceable somehow (maybe with generics?)
-    fn calc_distance(a: &[f64], b: &[f64]) -> f64 {
+    fn calc_distance(a: &[f32], b: &[f32]) -> f32 {
         let mut distance = 0.0;
         for (a_item, b_item) in a.iter().zip(b) {
             distance += (a_item - b_item).powf(2.0);
@@ -26,10 +26,10 @@ impl Knn {
         distance.sqrt()
     }
 
-    pub fn predict_class(&self, point: Vec<f64>) -> Class {
+    pub fn predict_class(&self, point: &Vec<f32>) -> Class {
         #[derive(Clone, Copy)]
         struct NeighborData {
-            distance: f64,
+            distance: f32,
             class: i64,
         }
 

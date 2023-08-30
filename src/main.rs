@@ -3,6 +3,7 @@ mod lib;
 use std::{
     format,
     time::{SystemTime, UNIX_EPOCH},
+    vec,
 };
 
 use plotters::{
@@ -13,34 +14,96 @@ use plotters::{
     style::{IntoFont, BLUE, RED, WHITE},
 };
 
-use lib::rng::{box_muller, Rng};
+use lib::{
+    knn::{Class, Knn},
+    rng::{box_muller, Rng},
+};
 
-fn gen_xor_data(
+fn append_2d_data(
     rng: &mut Rng,
+    data: &mut Vec<(Class, Vec<f32>)>,
     mu: &[f32; 2],
     std_dev: f32,
     samples: usize,
-) -> Vec<(f32, f32)> {
-    let mut result: Vec<(f32, f32)> = Vec::with_capacity(samples);
-
+    class: Class,
+) {
     for _ in 0..samples {
         let x = box_muller(rng, mu[0] as f64, std_dev as f64);
         let y = box_muller(rng, mu[1] as f64, std_dev as f64);
 
-        result.push((x as f32, y as f32));
+        data.push((class, vec![x as f32, y as f32]));
     }
+}
+
+fn gen_xor_data(
+    rng: &mut Rng, std_dev: f32, samples_per_class: usize
+) -> Vec<(Class, Vec<f32>)> {
+    let mut result: Vec<(Class, Vec<f32>)> = vec![];
+    
+    let zero_zero_data = append_2d_data(
+        rng,
+        &mut result,
+        &[0.0, 0.0],
+        std_dev,
+        samples_per_class,
+        0,
+    );
+    let zero_one_data = append_2d_data(
+        rng,
+        &mut result,
+        &[0.0, 1.0],
+        std_dev,
+        samples_per_class,
+        1,
+    );
+    let one_zero_data = append_2d_data(
+        rng,
+        &mut result,
+        &[1.0, 0.0],
+        std_dev,
+        samples_per_class,
+        1,
+    );
+    let one_one_data = append_2d_data(
+        rng,
+        &mut result,
+        &[1.0, 1.0],
+        std_dev,
+        samples_per_class,
+        0,
+    );
 
     result
 }
+
+// TODO: generate some 2d spiral data
 
 fn main() {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let mut rng = Rng::new(now.as_secs());
 
-    let zero_zero_data = gen_xor_data(&mut rng, &[0.0, 0.0], 0.1, 100);
-    let zero_one_data = gen_xor_data(&mut rng, &[0.0, 1.0], 0.1, 100);
-    let one_zero_data = gen_xor_data(&mut rng, &[1.0, 0.0], 0.1, 100);
-    let one_one_data = gen_xor_data(&mut rng, &[1.0, 1.0], 0.1, 100);
+    let training_data = gen_xor_data(&mut rng, 0.1, 90);
+    let test_data = gen_xor_data(&mut rng, 0.15, 10);
+
+    // predict test data classes
+    let knn_predictor = Knn::new(5, training_data);
+
+    let (predicted_zero, predicted_one) = {
+        let mut predicted_zero: Vec<(f32, f32)> = vec![];
+        let mut predicted_one: Vec<(f32, f32)> = vec![];
+        for datum in test_data {
+            let predicted_class = knn_predictor.predict_class(&datum.1);
+
+            let tuple_point = (datum.1[0], datum.1[1]);
+            if predicted_class == 0 {
+                predicted_zero.push(tuple_point);
+            } else {
+                predicted_one.push(tuple_point);
+            }
+        }
+
+        (predicted_zero, predicted_one)
+    };
 
     // Create a 800*600 bitmap and start drawing
     let root =
@@ -64,7 +127,7 @@ fn main() {
     // draw point series
     chart
         .draw_series(PointSeries::of_element(
-            zero_zero_data,
+            predicted_zero,
             5,
             &RED,
             &|c, s, st| {
@@ -76,33 +139,9 @@ fn main() {
 
     chart
         .draw_series(PointSeries::of_element(
-            zero_one_data,
+            predicted_one,
             5,
             &BLUE,
-            &|c, s, st| {
-                return EmptyElement::at(c)
-                    + Circle::new((0, 0), s, st.filled());
-            },
-        ))
-        .unwrap();
-
-    chart
-        .draw_series(PointSeries::of_element(
-            one_zero_data,
-            5,
-            &BLUE,
-            &|c, s, st| {
-                return EmptyElement::at(c)
-                    + Circle::new((0, 0), s, st.filled());
-            },
-        ))
-        .unwrap();
-
-    chart
-        .draw_series(PointSeries::of_element(
-            one_one_data,
-            5,
-            &RED,
             &|c, s, st| {
                 return EmptyElement::at(c)
                     + Circle::new((0, 0), s, st.filled());
