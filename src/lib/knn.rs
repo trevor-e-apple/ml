@@ -5,7 +5,7 @@ type Class = i64;
 
 pub struct Knn {
     k: usize,
-    pub data: Vec<(Class, Vec<f64>)>
+    pub data: Vec<(Class, Vec<f64>)>,
 }
 
 impl Knn {
@@ -13,7 +13,7 @@ impl Knn {
         if k == 0 {
             panic!();
         }
-        Self {k, data}
+        Self { k, data }
     }
 
     // TODO: make this replaceable somehow (maybe with generics?)
@@ -34,7 +34,8 @@ impl Knn {
         }
 
         // initialize with first k neighbors
-        let mut nearest_neighbors: Vec<NeighborData> = Vec::with_capacity(self.k);
+        let mut nearest_neighbors: Vec<NeighborData> =
+            Vec::with_capacity(self.k);
         for datum in &self.data[0..self.k] {
             let class = datum.0;
             let distance = Self::calc_distance(&point, &datum.1);
@@ -48,12 +49,15 @@ impl Knn {
 
             let (farthest_neighbor_index, farthest_neighbor) = {
                 let mut farthest_neighbor_index = 0;
-                let mut farthest_neighbor = match nearest_neighbors.get(farthest_neighbor_index) {
-                    Some(neighbor) => *neighbor,
-                    None => panic!(),
-                };
+                let mut farthest_neighbor =
+                    match nearest_neighbors.get(farthest_neighbor_index) {
+                        Some(neighbor) => *neighbor,
+                        None => panic!(),
+                    };
 
-                for (index, near_neighbor) in nearest_neighbors.iter().enumerate() {
+                for (index, near_neighbor) in
+                    nearest_neighbors.iter().enumerate()
+                {
                     if near_neighbor.distance > farthest_neighbor.distance {
                         farthest_neighbor_index = index;
                         farthest_neighbor = *near_neighbor;
@@ -65,7 +69,7 @@ impl Knn {
 
             if distance < farthest_neighbor.distance {
                 nearest_neighbors.swap_remove(farthest_neighbor_index);
-                nearest_neighbors.push( NeighborData { distance, class });
+                nearest_neighbors.push(NeighborData { distance, class });
             }
         }
 

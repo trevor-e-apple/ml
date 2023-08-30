@@ -3,7 +3,6 @@ mod lib;
 use std::{
     format,
     time::{SystemTime, UNIX_EPOCH},
-    vec,
 };
 
 use plotters::{
@@ -14,9 +13,14 @@ use plotters::{
     style::{IntoFont, BLUE, RED, WHITE},
 };
 
-use lib::{Rng, box_muller};
+use lib::rng::{box_muller, Rng};
 
-fn gen_xor_data(rng: &mut Rng, mu: &[f32; 2], std_dev: f32, samples: usize) -> Vec<(f32, f32)> {
+fn gen_xor_data(
+    rng: &mut Rng,
+    mu: &[f32; 2],
+    std_dev: f32,
+    samples: usize,
+) -> Vec<(f32, f32)> {
     let mut result: Vec<(f32, f32)> = Vec::with_capacity(samples);
 
     for _ in 0..samples {
@@ -33,21 +37,10 @@ fn main() {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let mut rng = Rng::new(now.as_secs());
 
-    for _ in 0..100 {
-        let random = rng.rand();
-        println!("{random}");
-    }
-
-    for i in 0..5 {
-        let sample = box_muller(&mut rng, 5.0, 2.5);
-        println!("sample {i}: {sample}");
-    }
-
     let zero_zero_data = gen_xor_data(&mut rng, &[0.0, 0.0], 0.1, 100);
     let zero_one_data = gen_xor_data(&mut rng, &[0.0, 1.0], 0.1, 100);
     let one_zero_data = gen_xor_data(&mut rng, &[1.0, 0.0], 0.1, 100);
     let one_one_data = gen_xor_data(&mut rng, &[1.0, 1.0], 0.1, 100);
-
 
     // Create a 800*600 bitmap and start drawing
     let root =

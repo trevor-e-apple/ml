@@ -26,7 +26,7 @@ impl Rng {
 
 /// function for sampling from a normal distribution using a random number
 /// generator that generates a uniform distribution
-pub fn box_muller(rng: &mut  Rng, mean: f64, std_dev: f64) -> f64 {
+pub fn box_muller(rng: &mut Rng, mean: f64, std_dev: f64) -> f64 {
     let u1 = (rng.rand() as f64) / (std::u64::MAX as f64);
     let u2 = (rng.rand() as f64) / (std::u64::MAX as f64);
 
