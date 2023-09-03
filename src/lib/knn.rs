@@ -1,5 +1,5 @@
 use core::panic;
-use std::collections::HashMap;
+use std::{collections::HashMap, thread::{self, JoinHandle}};
 
 pub type Class = i64;
 
@@ -105,6 +105,42 @@ impl Knn {
         };
 
         class
+    }
+
+    fn predict_classes_thread(
+        &self,
+        points: &[Vec<f32>],
+        results: &mut [Class],
+    ) {
+        for (index, point) in points.iter().enumerate() {
+            results[index] = self.predict_class(point);
+        }
+    }
+
+    pub fn predict_classes(
+        &self,
+        points: &Vec<Vec<f32>>,
+        thread_count: usize,
+    ) -> Vec<Class> {
+        let mut results = vec![0; points.len()];
+
+        let points_per_thread = points.len() / thread_count;
+
+        thread::scope(|s| {
+            let points_iter = points.chunks(points_per_thread);
+            let results_iter = results.chunks_mut(points_per_thread);
+
+            for (points_slice, results_slice) in points_iter.zip(results_iter) {
+                s.spawn(|| {
+                    self.predict_classes_thread(
+                        points_slice,
+                        results_slice,
+                    );
+                });
+            }
+        });
+
+        results
     }
 }
 

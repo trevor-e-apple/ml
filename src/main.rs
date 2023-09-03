@@ -36,10 +36,12 @@ fn append_2d_data(
 }
 
 fn gen_xor_data(
-    rng: &mut Rng, std_dev: f32, samples_per_class: usize
+    rng: &mut Rng,
+    std_dev: f32,
+    samples_per_class: usize,
 ) -> Vec<(Class, Vec<f32>)> {
     let mut result: Vec<(Class, Vec<f32>)> = vec![];
-    
+
     let zero_zero_data = append_2d_data(
         rng,
         &mut result,
