@@ -15,23 +15,25 @@ use plotters::{
 };
 
 use lib::{
-    knn::{Class, Knn},
+    knn::{Label, Knn},
     rng::{box_muller, Rng},
 };
 
 fn append_2d_data(
     rng: &mut Rng,
-    data: &mut Vec<(Class, Vec<f32>)>,
+    data: &mut Vec<Vec<f32>>,
+    labels: &mut Vec<Label>,
     mu: &[f32; 2],
     std_dev: f32,
     samples: usize,
-    class: Class,
+    label: Label,
 ) {
     for _ in 0..samples {
         let x = box_muller(rng, mu[0] as f64, std_dev as f64);
         let y = box_muller(rng, mu[1] as f64, std_dev as f64);
 
-        data.push((class, vec![x as f32, y as f32]));
+        data.push(vec![x as f32, y as f32]);
+        labels.push(label);
     }
 }
 
@@ -39,12 +41,15 @@ fn gen_xor_data(
     rng: &mut Rng,
     std_dev: f32,
     samples_per_class: usize,
-) -> Vec<(Class, Vec<f32>)> {
-    let mut result: Vec<(Class, Vec<f32>)> = vec![];
+) -> (Vec<Vec<f32>>, Vec<Label>) {
+    let mut data: Vec<Vec<f32>> = vec![];
+    let mut labels: Vec<Label> = Vec::with_capacity(4 * samples_per_class);
+
 
     let zero_zero_data = append_2d_data(
         rng,
-        &mut result,
+        &mut data,
+        &mut labels,
         &[0.0, 0.0],
         std_dev,
         samples_per_class,
@@ -52,7 +57,8 @@ fn gen_xor_data(
     );
     let zero_one_data = append_2d_data(
         rng,
-        &mut result,
+        &mut data,
+        &mut labels,
         &[0.0, 1.0],
         std_dev,
         samples_per_class,
@@ -60,7 +66,8 @@ fn gen_xor_data(
     );
     let one_zero_data = append_2d_data(
         rng,
-        &mut result,
+        &mut data,
+        &mut labels,
         &[1.0, 0.0],
         std_dev,
         samples_per_class,
@@ -68,14 +75,15 @@ fn gen_xor_data(
     );
     let one_one_data = append_2d_data(
         rng,
-        &mut result,
+        &mut data,
+        &mut labels,
         &[1.0, 1.0],
         std_dev,
         samples_per_class,
         0,
     );
 
-    result
+    (data, labels)
 }
 
 // TODO: generate some 2d spiral data
@@ -84,20 +92,19 @@ fn main() {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let mut rng = Rng::new(now.as_secs());
 
-    let training_data = gen_xor_data(&mut rng, 0.1, 90);
-    let test_data = gen_xor_data(&mut rng, 0.15, 10);
+    let (training_data, training_labels) = gen_xor_data(&mut rng, 0.1, 90);
+    let (test_data, _) = gen_xor_data(&mut rng, 0.15, 10);
 
     // predict test data classes
-    let knn_predictor = Knn::new(5, training_data);
+    let knn_predictor = Knn::new(5, training_data, training_labels);
 
     let (predicted_zero, predicted_one) = {
         let mut predicted_zero: Vec<(f32, f32)> = vec![];
         let mut predicted_one: Vec<(f32, f32)> = vec![];
-        for datum in test_data {
-            let predicted_class = knn_predictor.predict_class(&datum.1);
-
-            let tuple_point = (datum.1[0], datum.1[1]);
-            if predicted_class == 0 {
+        let predictions = knn_predictor.predict_classes(&test_data, 4);
+        for (datum, predicted_label) in test_data.iter().zip(predictions.iter()) {
+            let tuple_point = (datum[0], datum[1]);
+            if *predicted_label == 0 {
                 predicted_zero.push(tuple_point);
             } else {
                 predicted_one.push(tuple_point);

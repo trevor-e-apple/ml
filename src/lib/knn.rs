@@ -1,19 +1,21 @@
 use core::panic;
 use std::{collections::HashMap, thread::{self, JoinHandle}};
 
-pub type Class = i64;
+pub type Label = i64;
 
 pub struct Knn {
     k: usize,
-    pub data: Vec<(Class, Vec<f32>)>,
+    pub data: Vec<Vec<f32>>,
+    pub labels: Vec<Label>,
+
 }
 
 impl Knn {
-    pub fn new(k: usize, data: Vec<(Class, Vec<f32>)>) -> Self {
+    pub fn new(k: usize, data: Vec<Vec<f32>>, labels: Vec<Label>) -> Self {
         if k == 0 {
             panic!();
         }
-        Self { k, data }
+        Self { k, data, labels }
     }
 
     // TODO: make this replaceable somehow (maybe with generics?)
@@ -26,26 +28,27 @@ impl Knn {
         distance.sqrt()
     }
 
-    pub fn predict_class(&self, point: &Vec<f32>) -> Class {
+    pub fn predict_class(&self, point: &Vec<f32>) -> Label {
         #[derive(Clone, Copy)]
         struct NeighborData {
             distance: f32,
-            class: i64,
+            label: Label,
         }
 
         // initialize with first k neighbors
         let mut nearest_neighbors: Vec<NeighborData> =
             Vec::with_capacity(self.k);
-        for datum in &self.data[0..self.k] {
-            let class = datum.0;
-            let distance = Self::calc_distance(&point, &datum.1);
-            nearest_neighbors.push(NeighborData { distance, class });
+
+        let (first_k_data, remaining_data) = self.data.split_at(self.k + 1);
+        let (first_k_labels, remaining_labels) = self.labels.split_at(self.k + 1);
+        for (datum, label) in first_k_data.iter().zip(first_k_labels.iter()) {
+            let distance = Self::calc_distance(&point, datum);
+            nearest_neighbors.push(NeighborData { distance, label: *label });
         }
 
         // find the k nearest neighbors
-        for datum in &self.data[self.k..] {
-            let class = datum.0;
-            let distance = Self::calc_distance(&point, &datum.1);
+        for (datum, label) in remaining_data.iter().zip(remaining_labels.iter()) {
+            let distance = Self::calc_distance(&point, datum);
 
             let (farthest_neighbor_index, farthest_neighbor) = {
                 let mut farthest_neighbor_index = 0;
@@ -69,19 +72,19 @@ impl Knn {
 
             if distance < farthest_neighbor.distance {
                 nearest_neighbors.swap_remove(farthest_neighbor_index);
-                nearest_neighbors.push(NeighborData { distance, class });
+                nearest_neighbors.push(NeighborData { distance, label: *label });
             }
         }
 
         // map the classes to the neighbor count
-        let mut class_map: HashMap<Class, i32> = HashMap::with_capacity(self.k);
+        let mut class_map: HashMap<Label, i32> = HashMap::with_capacity(self.k);
         for neighbor_data in nearest_neighbors {
-            let count = match class_map.get(&neighbor_data.class) {
+            let count = match class_map.get(&neighbor_data.label) {
                 Some(count) => *count + 1,
                 None => 1,
             };
 
-            class_map.insert(neighbor_data.class, count);
+            class_map.insert(neighbor_data.label, count);
         }
 
         // find the class with the most close neighbors
@@ -110,7 +113,7 @@ impl Knn {
     fn predict_classes_thread(
         &self,
         points: &[Vec<f32>],
-        results: &mut [Class],
+        results: &mut [Label],
     ) {
         for (index, point) in points.iter().enumerate() {
             results[index] = self.predict_class(point);
@@ -121,7 +124,7 @@ impl Knn {
         &self,
         points: &Vec<Vec<f32>>,
         thread_count: usize,
-    ) -> Vec<Class> {
+    ) -> Vec<Label> {
         let mut results = vec![0; points.len()];
 
         let points_per_thread = points.len() / thread_count;
