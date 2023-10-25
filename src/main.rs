@@ -4,8 +4,10 @@ use std::{
     format,
     time::{SystemTime, UNIX_EPOCH},
     vec,
+    path, println, fs::File, io::Read,
 };
 
+use metal::*;
 use plotters::{
     prelude::{
         BitMapBackend, ChartBuilder, Circle, EmptyElement, IntoDrawingArea,
@@ -159,4 +161,25 @@ fn main() {
         .unwrap();
 
     root.present().unwrap();
+
+    // metal test
+    {
+        let device = Device::system_default().unwrap();
+
+        let library_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/metal_kernels/add_array.metal");
+        println!("{}", library_path.as_path().display().to_string());
+
+        let mut kernel_file = File::open(library_path).unwrap();
+        let mut contents = String::new();
+        kernel_file.read_to_string(&mut contents).unwrap();
+
+        let device = Device::system_default().expect("no device found");
+
+        let options = CompileOptions::new();
+        let _library = device.new_library_with_source(&contents, &options).unwrap();
+        let function = _library.get_function("add_arrays", None).unwrap();
+        let pipeline = device.new_compute_pipeline_state_with_function(&function);
+        let command_queue = device.new_command_queue();
+
+    }
 }
