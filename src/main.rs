@@ -2,6 +2,7 @@ mod lib;
 
 use std::{
     format,
+    slice,
     time::{SystemTime, UNIX_EPOCH},
     vec,
     path, println, fs::File, io::Read,
@@ -86,6 +87,15 @@ fn gen_xor_data(
     );
 
     (data, labels)
+}
+
+fn gen_random_data_mtl_buff(buff: &Buffer) {
+    let pointer: *mut i32 = buff.contents() as *mut i32;
+    let length = buff.length() as usize;
+    let contents = unsafe { slice::from_raw_parts_mut(pointer, length) };
+    for index in 0..length {
+        contents[index] = 0;
+    }
 }
 
 // TODO: generate some 2d spiral data
@@ -180,6 +190,8 @@ fn main() {
         let function = _library.get_function("add_arrays", None).unwrap();
         let pipeline = device.new_compute_pipeline_state_with_function(&function);
         let command_queue = device.new_command_queue();
-
+        let buffer_one = device.new_buffer(8192, MTLResourceOptions::empty());
+        let buffer_two = device.new_buffer(8192, MTLResourceOptions::empty());
+        let buffer_three = device.new_buffer(8192, MTLResourceOptions::empty());
     }
 }
