@@ -18,6 +18,12 @@ impl Rng {
 
         self.state
     }
+
+    // returns a random float between 0.0 and 1.0
+    pub fn rand_float(&mut self) -> f64 {
+        let value = self.rand();
+        (value as f64) / (u64::MAX as f64)
+    }
 }
 
 /// function for sampling from a normal distribution using a random number

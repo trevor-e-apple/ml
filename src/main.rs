@@ -2,6 +2,7 @@ mod lib;
 
 use std::{
     format,
+    iter::zip,
     time::{SystemTime, UNIX_EPOCH},
     vec,
 };
@@ -85,7 +86,39 @@ fn gen_xor_data(
     (data, labels)
 }
 
-// fn gen_spiral_data() -> (Vec<Vec<f32>>, Vec<Label>) {}
+fn gen_2d_spiral_data(
+    rng: &mut Rng,
+    std_dev: f32,
+    class_count: usize,
+    samples_per_class: usize,
+) -> (Vec<(f32, f32)>, Vec<Label>) {
+    let mut data: Vec<(f32, f32)> = vec![];
+    let mut labels: Vec<Label> =
+        Vec::with_capacity(class_count * samples_per_class);
+
+    for class_index in 0..class_count {
+        let angle_offset =
+            2.0 * 3.14 * (class_index as f64 / class_count as f64);
+        for sample_index in 0..samples_per_class {
+            // radius shall be between 0 and 1
+            let radius: f64 =
+                (sample_index as f64) / (samples_per_class as f64);
+            let angle =
+                2.0 * 3.14 * (sample_index as f64 / samples_per_class as f64)
+                    + angle_offset;
+            // offset so we have different spirals
+            let (true_y, true_x) = angle.sin_cos();
+            // let (x, y) = (radius * true_x, radius * true_y);
+            let x = box_muller(rng, radius * true_x, std_dev as f64);
+            let y = box_muller(rng, radius * true_y, std_dev as f64);
+
+            data.push((x as f32, y as f32));
+            labels.push(class_index as Label);
+        }
+    }
+
+    (data, labels)
+}
 
 fn draw_2d_data(
     file_path: &str,
@@ -135,6 +168,9 @@ fn main() {
     let (training_data, training_labels) = gen_xor_data(&mut rng, 0.1, 90);
     let (test_data, _) = gen_xor_data(&mut rng, 0.15, 10);
 
+    let (spiral_training_data, spiral_training_labels) =
+        gen_2d_spiral_data(&mut rng, 0.02, 2, 100);
+
     // predict test data classes
     let knn_predictor = Knn::new(5, training_data, training_labels);
 
@@ -159,5 +195,32 @@ fn main() {
         "test/xor.png",
         "XOR",
         vec![(predicted_zero, &RED), (predicted_one, &BLUE)],
+    );
+
+    let red_spiral = {
+        let mut red_spiral: Vec<(f32, f32)> = vec![];
+        for (data, label) in zip(&spiral_training_data, &spiral_training_labels)
+        {
+            if *label == 0 {
+                red_spiral.push(*data);
+            }
+        }
+        red_spiral
+    };
+
+    let blue_spiral = {
+        let mut blue_spiral: Vec<(f32, f32)> = vec![];
+        for (data, label) in zip(&spiral_training_data, &spiral_training_labels)
+        {
+            if *label == 1 {
+                blue_spiral.push(*data);
+            }
+        }
+        blue_spiral
+    };
+    draw_2d_data(
+        "test/spiral.png",
+        "SPIRAL",
+        vec![(red_spiral, &RED), (blue_spiral, &BLUE)],
     );
 }
