@@ -1,9 +1,5 @@
 use std::f64::consts::PI;
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
-
 /// quick and dirty RNG
 pub struct Rng {
     state: u64,
