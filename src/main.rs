@@ -12,7 +12,9 @@ use plotters::{
         BitMapBackend, ChartBuilder, Circle, EmptyElement, IntoDrawingArea,
     },
     series::PointSeries,
-    style::{Color, IntoFont, RGBColor, BLUE, RED, WHITE},
+    style::{
+        IntoFont, RGBColor, BLUE, CYAN, GREEN, MAGENTA, RED, WHITE, YELLOW,
+    },
 };
 
 use lib::{
@@ -91,8 +93,8 @@ fn gen_2d_spiral_data(
     std_dev: f32,
     class_count: usize,
     samples_per_class: usize,
-) -> (Vec<(f32, f32)>, Vec<Label>) {
-    let mut data: Vec<(f32, f32)> = vec![];
+) -> (Vec<Vec<f32>>, Vec<Label>) {
+    let mut data: Vec<Vec<f32>> = vec![];
     let mut labels: Vec<Label> =
         Vec::with_capacity(class_count * samples_per_class);
 
@@ -112,7 +114,7 @@ fn gen_2d_spiral_data(
             let x = box_muller(rng, radius * true_x, std_dev as f64);
             let y = box_muller(rng, radius * true_y, std_dev as f64);
 
-            data.push((x as f32, y as f32));
+            data.push(vec![x as f32, y as f32]);
             labels.push(class_index as Label);
         }
     }
@@ -169,7 +171,9 @@ fn main() {
     let (test_data, _) = gen_xor_data(&mut rng, 0.15, 10);
 
     let (spiral_training_data, spiral_training_labels) =
-        gen_2d_spiral_data(&mut rng, 0.02, 2, 100);
+        gen_2d_spiral_data(&mut rng, 0.02, 3, 100);
+    let (spiral_test_data, spiral_test_labels) =
+        gen_2d_spiral_data(&mut rng, 0.04, 3, 100);
 
     // predict test data classes
     let knn_predictor = Knn::new(5, training_data, training_labels);
@@ -197,30 +201,97 @@ fn main() {
         vec![(predicted_zero, &RED), (predicted_one, &BLUE)],
     );
 
-    let red_spiral = {
+    let (red_spiral, blue_spiral, green_spiral): (
+        Vec<(f32, f32)>,
+        Vec<(f32, f32)>,
+        Vec<(f32, f32)>,
+    ) = {
         let mut red_spiral: Vec<(f32, f32)> = vec![];
+        let mut blue_spiral: Vec<(f32, f32)> = vec![];
+        let mut green_spiral: Vec<(f32, f32)> = vec![];
+
         for (data, label) in zip(&spiral_training_data, &spiral_training_labels)
         {
+            let tuple_point = (data[0], data[1]);
             if *label == 0 {
-                red_spiral.push(*data);
+                red_spiral.push(tuple_point);
+            } else if *label == 1 {
+                blue_spiral.push(tuple_point);
+            } else if *label == 2 {
+                green_spiral.push(tuple_point);
             }
         }
-        red_spiral
+        (red_spiral, blue_spiral, green_spiral)
     };
 
-    let blue_spiral = {
-        let mut blue_spiral: Vec<(f32, f32)> = vec![];
-        for (data, label) in zip(&spiral_training_data, &spiral_training_labels)
+    let spiral_predictor =
+        Knn::new(5, spiral_training_data, spiral_training_labels);
+
+    let (
+        red_spiral_correct,
+        red_spiral_wrong,
+        blue_spiral_correct,
+        blue_spiral_wrong,
+        green_spiral_correct,
+        green_spiral_wrong,
+    ) = {
+        let mut red_spiral_correct: Vec<(f32, f32)> = vec![];
+        let mut red_spiral_wrong: Vec<(f32, f32)> = vec![];
+        let mut blue_spiral_correct: Vec<(f32, f32)> = vec![];
+        let mut blue_spiral_wrong: Vec<(f32, f32)> = vec![];
+        let mut green_spiral_correct: Vec<(f32, f32)> = vec![];
+        let mut green_spiral_wrong: Vec<(f32, f32)> = vec![];
+
+        let predictions =
+            spiral_predictor.predict_classes(&spiral_test_data, 4);
+        for ((datum, predicted_label), actual_label) in spiral_test_data
+            .iter()
+            .zip(predictions.iter())
+            .zip(spiral_test_labels.iter())
         {
-            if *label == 1 {
-                blue_spiral.push(*data);
+            let (correct_vec, wrong_vec) = if *actual_label == 0 {
+                (&mut red_spiral_correct, &mut red_spiral_wrong)
+            } else if *actual_label == 1 {
+                (&mut blue_spiral_correct, &mut blue_spiral_wrong)
+            } else if *actual_label == 2 {
+                (&mut green_spiral_correct, &mut green_spiral_wrong)
+            } else {
+                panic!("something went horribly wrong");
+            };
+
+            let tuple_point = (datum[0], datum[1]);
+            if *predicted_label == *actual_label {
+                correct_vec.push(tuple_point)
+            } else {
+                wrong_vec.push(tuple_point);
             }
         }
-        blue_spiral
+
+        (
+            red_spiral_correct,
+            red_spiral_wrong,
+            blue_spiral_correct,
+            blue_spiral_wrong,
+            green_spiral_correct,
+            green_spiral_wrong,
+        )
     };
+
     draw_2d_data(
         "test/spiral.png",
         "SPIRAL",
-        vec![(red_spiral, &RED), (blue_spiral, &BLUE)],
+        vec![(red_spiral, &RED), (blue_spiral, &BLUE), (green_spiral, &GREEN)],
+    );
+    draw_2d_data(
+        "test/spiral_knn_test.png",
+        "SPIRAL",
+        vec![
+            (red_spiral_correct, &RED),
+            (red_spiral_wrong, &MAGENTA),
+            (blue_spiral_correct, &BLUE),
+            (blue_spiral_wrong, &CYAN),
+            (green_spiral_correct, &GREEN),
+            (green_spiral_wrong, &YELLOW),
+        ],
     );
 }
