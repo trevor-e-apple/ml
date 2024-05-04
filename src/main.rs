@@ -1,8 +1,10 @@
 mod lib;
 
 use std::{
-    format,
+    env, format,
     iter::zip,
+    os::raw::c_void,
+    process::exit,
     time::{SystemTime, UNIX_EPOCH},
     vec,
 };
@@ -163,7 +165,41 @@ fn draw_2d_data(
     root.present().unwrap();
 }
 
+fn init_cuda_device(
+    dll_path: &str,
+) -> Result<c_void, Box<dyn std::error::Error>> {
+    unsafe {
+        let lib = libloading::Library::new(dll_path)?;
+        let func: libloading::Symbol<unsafe extern "C" fn() -> c_void> =
+            lib.get(b"?init_cuda_device@@YAXXZ")?;
+        Ok(func())
+    }
+}
+
+fn alloc_cuda_mem(
+    dll_path: &str,
+    byte_count: usize,
+) -> Result<c_void, Box<dyn std::error::Error>> {
+    unsafe {
+        let lib = libloading::Library::new(dll_path)?;
+        let func: libloading::Symbol<unsafe extern "C" fn(usize) -> c_void> =
+            lib.get(b"?alloc_cuda_mem@@YAPEAX_K@Z")?;
+        Ok(func(byte_count))
+    }
+}
+
 fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let dll_path = match args.get(1) {
+        Some(path) => path,
+        None => {
+            println!("Unable to find dll path");
+            exit(1);
+        }
+    };
+    println!("Using dll at: {}", dll_path);
+
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let mut rng = Rng::new(now.as_secs());
 
@@ -294,4 +330,20 @@ fn main() {
             (green_spiral_wrong, &YELLOW),
         ],
     );
+
+    match init_cuda_device(dll_path) {
+        Ok(_) => {}
+        Err(err) => {
+            println!("init_cuda_device Error: {:?}", err);
+            exit(1);
+        }
+    };
+
+    match alloc_cuda_mem(dll_path, 1024) {
+        Ok(_) => {}
+        Err(err) => {
+            println!("alloc_cuda_mem Error {:?}", err);
+            exit(1);
+        }
+    };
 }
