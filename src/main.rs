@@ -3,8 +3,10 @@ mod lib;
 use std::{
     env, format,
     iter::zip,
+    mem::size_of,
     os::raw::c_void,
     process::exit,
+    ptr,
     time::{SystemTime, UNIX_EPOCH},
     vec,
 };
@@ -179,12 +181,34 @@ fn init_cuda_device(
 fn alloc_cuda_mem(
     dll_path: &str,
     byte_count: usize,
+) -> Result<*mut c_void, Box<dyn std::error::Error>> {
+    unsafe {
+        let lib = libloading::Library::new(dll_path)?;
+        let func: libloading::Symbol<
+            unsafe extern "C" fn(usize) -> *mut c_void,
+        > = lib.get(b"?alloc_cuda_mem@@YAPEAX_K@Z")?;
+        Ok(func(byte_count))
+    }
+}
+
+fn cuda_add_arrays(
+    dll_path: &str,
+    a: *const f32,
+    b: *const f32,
+    len: usize,
+    out: *mut f32,
 ) -> Result<c_void, Box<dyn std::error::Error>> {
     unsafe {
         let lib = libloading::Library::new(dll_path)?;
-        let func: libloading::Symbol<unsafe extern "C" fn(usize) -> c_void> =
-            lib.get(b"?alloc_cuda_mem@@YAPEAX_K@Z")?;
-        Ok(func(byte_count))
+        let func: libloading::Symbol<
+            unsafe extern "C" fn(
+                *const f32,
+                *const f32,
+                usize,
+                *mut f32,
+            ) -> c_void,
+        > = lib.get(b"?add@@YAXPEAM0_K0@Z")?;
+        Ok(func(a, b, len, out))
     }
 }
 
@@ -339,11 +363,51 @@ fn main() {
         }
     };
 
-    match alloc_cuda_mem(dll_path, 1024) {
-        Ok(_) => {}
+    let byte_count = 1024;
+    let f32_count = byte_count / size_of::<f32>();
+    let cuda_array_one = match alloc_cuda_mem(dll_path, byte_count) {
+        Ok(mem_ptr) => {
+            ptr::slice_from_raw_parts_mut(mem_ptr as *mut f32, f32_count)
+        }
         Err(err) => {
             println!("alloc_cuda_mem Error {:?}", err);
             exit(1);
         }
     };
+    let cuda_array_two = match alloc_cuda_mem(dll_path, byte_count) {
+        Ok(mem_ptr) => {
+            ptr::slice_from_raw_parts_mut(mem_ptr as *mut f32, f32_count)
+        }
+        Err(err) => {
+            println!("alloc_cuda_mem Error {:?}", err);
+            exit(1);
+        }
+    };
+    let cuda_array_three = match alloc_cuda_mem(dll_path, byte_count) {
+        Ok(mem_ptr) => {
+            ptr::slice_from_raw_parts_mut(mem_ptr as *mut f32, f32_count)
+        }
+        Err(err) => {
+            println!("alloc_cuda_mem Error {:?}", err);
+            exit(1);
+        }
+    };
+
+    for index in 0..byte_count {
+        unsafe {
+            (*cuda_array_one)[index] = index as f32;
+            (*cuda_array_two)[index] = index as f32;
+        }
+    }
+
+    match cuda_add_arrays(
+        dll_path,
+        cuda_array_one as *const f32,
+        cuda_array_two as *const f32,
+        f32_count,
+        cuda_array_three as *mut f32,
+    ) {
+        Ok(_) => todo!(),
+        Err(_) => todo!(),
+    }
 }
