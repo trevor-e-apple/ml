@@ -1,7 +1,7 @@
 mod lib;
 
 use std::{
-    env, format,
+    array, env, format,
     iter::zip,
     mem::size_of,
     os::raw::c_void,
@@ -188,6 +188,36 @@ fn alloc_cuda_mem(
             unsafe extern "C" fn(usize) -> *mut c_void,
         > = lib.get(b"?alloc_cuda_mem@@YAPEAX_K@Z")?;
         Ok(func(byte_count))
+    }
+}
+
+fn mem_to_device(
+    dll_path: &str,
+    dst: *mut c_void,
+    src: *const c_void,
+    len: usize,
+) -> Result<c_void, Box<dyn std::error::Error>> {
+    unsafe {
+        let lib = libloading::Library::new(dll_path)?;
+        let func: libloading::Symbol<
+            unsafe extern "C" fn(*const c_void, *const c_void, usize) -> c_void,
+        > = lib.get(b"?cuda_mem_copy_to_device@@YAXPEAX0_K@Z")?;
+        Ok(func(dst, src, len))
+    }
+}
+
+fn mem_to_host(
+    dll_path: &str,
+    dst: *mut c_void,
+    src: *const c_void,
+    len: usize,
+) -> Result<c_void, Box<dyn std::error::Error>> {
+    unsafe {
+        let lib = libloading::Library::new(dll_path)?;
+        let func: libloading::Symbol<
+            unsafe extern "C" fn(*const c_void, *const c_void, usize) -> c_void,
+        > = lib.get(b"?cuda_mem_copy_to_host@@YAXPEAX0_K@Z")?;
+        Ok(func(dst, src, len))
     }
 }
 
@@ -393,12 +423,38 @@ fn main() {
         }
     };
 
+    println!("initializing host arrays");
+
+    let mut host_mem_one = Vec::<f32>::with_capacity(byte_count);
+    let mut host_mem_two = Vec::<f32>::with_capacity(byte_count);
+    let mut host_mem_three = Vec::<f32>::with_capacity(byte_count);
     for index in 0..byte_count {
-        unsafe {
-            (*cuda_array_one)[index] = index as f32;
-            (*cuda_array_two)[index] = index as f32;
-        }
+        // unsafe {
+        //     (*cuda_array_one)[index] = index as f32;
+        //     (*cuda_array_two)[index] = index as f32;
+        // }
+        host_mem_one.push(index as f32);
+        host_mem_two.push(index as f32);
     }
+
+    println!("Transferring data to GPU arrays");
+    match mem_to_device(
+        dll_path,
+        cuda_array_one as *mut c_void,
+        host_mem_one.as_ptr() as *const c_void,
+        byte_count,
+    ) {
+        Ok(_) => println!("Data transferred"),
+        Err(_) => todo!("Data failed to transfer"),
+    };
+
+    println!("Testing transfer back to host");
+    for index in 0..byte_count {
+        host_mem_one[index] = 0.0;
+        host_mem_two[index] = 0.0;
+    }
+
+    println!("Adding arrays...");
 
     match cuda_add_arrays(
         dll_path,
@@ -407,7 +463,19 @@ fn main() {
         f32_count,
         cuda_array_three as *mut f32,
     ) {
-        Ok(_) => todo!(),
-        Err(_) => todo!(),
+        Ok(_) => {
+            // for index in 0..byte_count {
+            //     let array_one_val = unsafe { (*cuda_array_one)[index] };
+            //     let array_two_val = unsafe { (*cuda_array_two)[index] };
+            //     let array_three_val = unsafe { (*cuda_array_three)[index] };
+
+            //     println!(
+            //         "{:?} + {:?} = {:?}?",
+            //         array_one_val, array_two_val, array_three_val
+            //     );
+            // }
+            println!("did we make it?");
+        }
+        Err(_) => todo!("Something went wrong"),
     }
 }
