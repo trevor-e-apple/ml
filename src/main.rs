@@ -168,68 +168,63 @@ fn draw_2d_data(
 }
 
 fn init_cuda_device(
-    dll_path: &str,
+    lib: &libloading::Library,
 ) -> Result<c_void, Box<dyn std::error::Error>> {
     unsafe {
-        let lib = libloading::Library::new(dll_path)?;
         let func: libloading::Symbol<unsafe extern "C" fn() -> c_void> =
-            lib.get(b"?init_cuda_device@@YAXXZ")?;
+            lib.get(b"init_cuda_device")?;
         Ok(func())
     }
 }
 
 fn alloc_cuda_mem(
-    dll_path: &str,
+    lib: &libloading::Library,
     byte_count: usize,
 ) -> Result<*mut c_void, Box<dyn std::error::Error>> {
     unsafe {
-        let lib = libloading::Library::new(dll_path)?;
         let func: libloading::Symbol<
             unsafe extern "C" fn(usize) -> *mut c_void,
-        > = lib.get(b"?alloc_cuda_mem@@YAPEAX_K@Z")?;
+        > = lib.get(b"alloc_cuda_mem")?;
         Ok(func(byte_count))
     }
 }
 
 fn mem_to_device(
-    dll_path: &str,
+    lib: &libloading::Library,
     dst: *mut c_void,
     src: *const c_void,
     len: usize,
 ) -> Result<c_void, Box<dyn std::error::Error>> {
     unsafe {
-        let lib = libloading::Library::new(dll_path)?;
         let func: libloading::Symbol<
             unsafe extern "C" fn(*const c_void, *const c_void, usize) -> c_void,
-        > = lib.get(b"?cuda_mem_copy_to_device@@YAXPEAX0_K@Z")?;
+        > = lib.get(b"cuda_mem_copy_to_device")?;
         Ok(func(dst, src, len))
     }
 }
 
 fn mem_to_host(
-    dll_path: &str,
+    lib: &libloading::Library,
     dst: *mut c_void,
     src: *const c_void,
     len: usize,
 ) -> Result<c_void, Box<dyn std::error::Error>> {
     unsafe {
-        let lib = libloading::Library::new(dll_path)?;
         let func: libloading::Symbol<
             unsafe extern "C" fn(*const c_void, *const c_void, usize) -> c_void,
-        > = lib.get(b"?cuda_mem_copy_to_host@@YAXPEAX0_K@Z")?;
+        > = lib.get(b"cuda_mem_copy_to_host")?;
         Ok(func(dst, src, len))
     }
 }
 
 fn cuda_add_arrays(
-    dll_path: &str,
+    lib: &libloading::Library,
     a: *const f32,
     b: *const f32,
     len: usize,
     out: *mut f32,
 ) -> Result<c_void, Box<dyn std::error::Error>> {
     unsafe {
-        let lib = libloading::Library::new(dll_path)?;
         let func: libloading::Symbol<
             unsafe extern "C" fn(
                 *const f32,
@@ -237,7 +232,7 @@ fn cuda_add_arrays(
                 usize,
                 *mut f32,
             ) -> c_void,
-        > = lib.get(b"?add@@YAXPEAM0_K0@Z")?;
+        > = lib.get(b"add")?;
         Ok(func(a, b, len, out))
     }
 }
@@ -253,6 +248,8 @@ fn main() {
         }
     };
     println!("Using dll at: {}", dll_path);
+    let lib: libloading::Library =
+        unsafe { libloading::Library::new(dll_path).unwrap() };
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let mut rng = Rng::new(now.as_secs());
@@ -385,7 +382,7 @@ fn main() {
         ],
     );
 
-    match init_cuda_device(dll_path) {
+    match init_cuda_device(&lib) {
         Ok(_) => {}
         Err(err) => {
             println!("init_cuda_device Error: {:?}", err);
@@ -395,28 +392,22 @@ fn main() {
 
     let byte_count = 1024;
     let f32_count = byte_count / size_of::<f32>();
-    let cuda_array_one = match alloc_cuda_mem(dll_path, byte_count) {
-        Ok(mem_ptr) => {
-            ptr::slice_from_raw_parts_mut(mem_ptr as *mut f32, f32_count)
-        }
+    let cuda_array_one = match alloc_cuda_mem(&lib, byte_count) {
+        Ok(mem_ptr) => mem_ptr as *mut f32,
         Err(err) => {
             println!("alloc_cuda_mem Error {:?}", err);
             exit(1);
         }
     };
-    let cuda_array_two = match alloc_cuda_mem(dll_path, byte_count) {
-        Ok(mem_ptr) => {
-            ptr::slice_from_raw_parts_mut(mem_ptr as *mut f32, f32_count)
-        }
+    let cuda_array_two = match alloc_cuda_mem(&lib, byte_count) {
+        Ok(mem_ptr) => mem_ptr as *mut f32,
         Err(err) => {
             println!("alloc_cuda_mem Error {:?}", err);
             exit(1);
         }
     };
-    let cuda_array_three = match alloc_cuda_mem(dll_path, byte_count) {
-        Ok(mem_ptr) => {
-            ptr::slice_from_raw_parts_mut(mem_ptr as *mut f32, f32_count)
-        }
+    let cuda_array_three = match alloc_cuda_mem(&lib, byte_count) {
+        Ok(mem_ptr) => mem_ptr as *mut f32,
         Err(err) => {
             println!("alloc_cuda_mem Error {:?}", err);
             exit(1);
@@ -425,21 +416,18 @@ fn main() {
 
     println!("initializing host arrays");
 
-    let mut host_mem_one = Vec::<f32>::with_capacity(byte_count);
-    let mut host_mem_two = Vec::<f32>::with_capacity(byte_count);
-    let mut host_mem_three = Vec::<f32>::with_capacity(byte_count);
-    for index in 0..byte_count {
-        // unsafe {
-        //     (*cuda_array_one)[index] = index as f32;
-        //     (*cuda_array_two)[index] = index as f32;
-        // }
+    let mut host_mem_one = Vec::<f32>::with_capacity(f32_count);
+    let mut host_mem_two = Vec::<f32>::with_capacity(f32_count);
+    let mut host_mem_three = Vec::<f32>::with_capacity(f32_count);
+    for index in 0..f32_count {
         host_mem_one.push(index as f32);
         host_mem_two.push(index as f32);
+        host_mem_three.push(0.0);
     }
 
     println!("Transferring data to GPU arrays");
     match mem_to_device(
-        dll_path,
+        &lib,
         cuda_array_one as *mut c_void,
         host_mem_one.as_ptr() as *const c_void,
         byte_count,
@@ -448,33 +436,42 @@ fn main() {
         Err(_) => todo!("Data failed to transfer"),
     };
 
-    println!("Testing transfer back to host");
-    for index in 0..byte_count {
-        host_mem_one[index] = 0.0;
-        host_mem_two[index] = 0.0;
-    }
+    match mem_to_device(
+        &lib,
+        cuda_array_two as *mut c_void,
+        host_mem_two.as_ptr() as *const c_void,
+        byte_count,
+    ) {
+        Ok(_) => println!("Data transferred"),
+        Err(_) => todo!("Data failed to transfer"),
+    };
 
     println!("Adding arrays...");
 
     match cuda_add_arrays(
-        dll_path,
+        &lib,
         cuda_array_one as *const f32,
         cuda_array_two as *const f32,
         f32_count,
         cuda_array_three as *mut f32,
     ) {
         Ok(_) => {
-            // for index in 0..byte_count {
-            //     let array_one_val = unsafe { (*cuda_array_one)[index] };
-            //     let array_two_val = unsafe { (*cuda_array_two)[index] };
-            //     let array_three_val = unsafe { (*cuda_array_three)[index] };
+            println!("Added arrays...");
+        }
+        Err(_) => todo!("Something went wrong"),
+    }
 
-            //     println!(
-            //         "{:?} + {:?} = {:?}?",
-            //         array_one_val, array_two_val, array_three_val
-            //     );
-            // }
-            println!("did we make it?");
+    println!("Mem back to host...");
+    match mem_to_host(
+        &lib,
+        host_mem_three.as_mut_ptr() as *mut c_void,
+        cuda_array_three as *const c_void,
+        byte_count,
+    ) {
+        Ok(_) => {
+            for value in host_mem_three {
+                println!("{:?}", value);
+            }
         }
         Err(_) => todo!("Something went wrong"),
     }
