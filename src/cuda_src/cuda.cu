@@ -41,6 +41,7 @@ __global__ void add_kernel(float *a, float *b, size_t len, float *out)
     }
 }
 
+/* TODO: delete me. dumb test kernel */
 void add(float *a, float *b, size_t len, float *out)
 {
     add_kernel<<<1, 1>>>(a, b, len, out);
