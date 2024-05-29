@@ -14,7 +14,6 @@ void *alloc_cuda_mem(size_t byte_count)
 {
     void *result = NULL;
     cudaError_t error = cudaMalloc(&result, byte_count);
-    printf("Pointer: %p Error: %d\n", result, byte_count);
     return result;
 }
 
