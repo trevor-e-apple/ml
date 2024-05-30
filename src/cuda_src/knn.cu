@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <float.h>
 
 struct nn_datum
 {
@@ -9,9 +10,9 @@ struct nn_datum
 __device__ float euclidean_distance(float *a, float *b, int32_t dim)
 {
     float distance = 0.0;
-    for (int32_t dim_index = 0; dim_index < dim; dim_index + 1)
+    for (int32_t dim_index = 0; dim_index < dim; dim_index += 1)
     {
-        float val = (test_vector[dim_index] - neighbor_vector[dim_index]);
+        float val = (a[dim_index] - b[dim_index]);
         distance += val * val;
     }
     return distance;
@@ -25,6 +26,7 @@ __global__ void knn_kernel(
     int32_t *neighbor_classes,
     int32_t neighbor_count,
     int32_t dim,
+    nn_datum *nn_data,
     int32_t *nn_class_counts,
     int32_t k)
 {
@@ -33,7 +35,7 @@ __global__ void knn_kernel(
 
     for (int32_t test_index = start; test_index < test_batch_count; test_index += stride)
     {
-        float *test_vector = test_batch[test_index * dim];
+        float *test_vector = test_batch + test_index * dim;
 
         // initialize neighbor data
         for (int32_t nn_index = 0; nn_index < k; nn_index++)
@@ -44,7 +46,7 @@ __global__ void knn_kernel(
 
         // initialize some data about the farthest nearest neighbor
         int32_t farthest_nn_index = 0;
-        float farthest_nn_distance = euclidean_distance(test_vector, neighbors[0]);
+        float farthest_nn_distance = euclidean_distance(test_vector, &neighbors[0], dim);
 
         for (int32_t neighbor_index = 0; neighbor_index < neighbor_count; neighbor_index++)
         {
@@ -136,10 +138,13 @@ void knn(
     int thread_count = block_count * block_size;
 
     // make an array for each thread to hold its nearest neighbors
-    // TODO: If someone is performing a bunch of these calculations in a row, this allocation is a
-    // -- waste of time. Give them a way to preconfigure.
+    // TODO: If someone is performing a bunch of these calculations in a row, this allocation / free cycle
+    // --  is a waste of time. Give them a way to preconfigure.
     nn_datum *nn_data = NULL;
     cudaError_t error = cudaMalloc(&nn_data, sizeof(nn_data) * k * thread_count);
+
+    int32_t *nn_class_counts = NULL;
+    cudaMalloc(&nn_class_counts, sizeof(in32_t) * k * thread_count);
 
     knn_kernel<<<block_count, block_size>>>();
 

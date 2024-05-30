@@ -1,4 +1,7 @@
 #include <stdio.h>
+
+#include "knn.cu"
+
 extern "C" __declspec(dllexport) void init_cuda_device();
 extern "C" __declspec(dllexport) void *alloc_cuda_mem(size_t byte_count);
 extern "C" __declspec(dllexport) void *cuda_free();
