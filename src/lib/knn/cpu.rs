@@ -1,15 +1,6 @@
 use core::panic;
 use std::{collections::HashMap, thread};
 
-pub type Label = i64;
-
-pub struct Knn {
-    k: usize,
-    pub data: Vec<Vec<f32>>,
-    pub labels: Vec<Label>,
-
-}
-
 impl Knn {
     pub fn new(k: usize, data: Vec<Vec<f32>>, labels: Vec<Label>) -> Self {
         if k == 0 {
@@ -40,14 +31,16 @@ impl Knn {
             Vec::with_capacity(self.k);
 
         let (first_k_data, remaining_data) = self.data.split_at(self.k + 1);
-        let (first_k_labels, remaining_labels) = self.labels.split_at(self.k + 1);
+        let (first_k_labels, remaining_labels) =
+            self.labels.split_at(self.k + 1);
         for (datum, label) in first_k_data.iter().zip(first_k_labels.iter()) {
             let distance = Self::calc_distance(&point, datum);
             nearest_neighbors.push(NeighborData { distance, label: *label });
         }
 
         // find the k nearest neighbors
-        for (datum, label) in remaining_data.iter().zip(remaining_labels.iter()) {
+        for (datum, label) in remaining_data.iter().zip(remaining_labels.iter())
+        {
             let distance = Self::calc_distance(&point, datum);
 
             let (farthest_neighbor_index, farthest_neighbor) = {
@@ -72,7 +65,8 @@ impl Knn {
 
             if distance < farthest_neighbor.distance {
                 nearest_neighbors.swap_remove(farthest_neighbor_index);
-                nearest_neighbors.push(NeighborData { distance, label: *label });
+                nearest_neighbors
+                    .push(NeighborData { distance, label: *label });
             }
         }
 
@@ -135,10 +129,7 @@ impl Knn {
 
             for (points_slice, results_slice) in points_iter.zip(results_iter) {
                 s.spawn(|| {
-                    self.predict_classes_thread(
-                        points_slice,
-                        results_slice,
-                    );
+                    self.predict_classes_thread(points_slice, results_slice);
                 });
             }
         });
