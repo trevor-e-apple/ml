@@ -1,25 +1,26 @@
 use core::panic;
 use std::{collections::HashMap, thread};
 
-impl Knn {
-    pub fn new(k: usize, data: Vec<Vec<f32>>, labels: Vec<Label>) -> Self {
+use super::{
+    data_structs::{KnnCommon, Label},
+    KnnLib,
+};
+
+pub type KnnCpu = KnnCommon;
+
+impl KnnLib for KnnCpu {
+    fn new(k: usize, data: Vec<Vec<f32>>, labels: Vec<Label>) -> Self {
         if k == 0 {
             panic!();
         }
         Self { k, data, labels }
     }
 
-    // TODO: make this replaceable somehow (maybe with generics?)
-    fn calc_distance(a: &[f32], b: &[f32]) -> f32 {
-        let mut distance = 0.0;
-        for (a_item, b_item) in a.iter().zip(b) {
-            distance += (a_item - b_item).powf(2.0);
-        }
-
-        distance.sqrt()
+    fn add_test(library_path: &String, num_elements: u32) {
+        unimplemented!();
     }
 
-    pub fn predict_class(&self, point: &Vec<f32>) -> Label {
+    fn predict_class(&self, point: &Vec<f32>) -> Label {
         #[derive(Clone, Copy)]
         struct NeighborData {
             distance: f32,
@@ -104,17 +105,7 @@ impl Knn {
         class
     }
 
-    fn predict_classes_thread(
-        &self,
-        points: &[Vec<f32>],
-        results: &mut [Label],
-    ) {
-        for (index, point) in points.iter().enumerate() {
-            results[index] = self.predict_class(point);
-        }
-    }
-
-    pub fn predict_classes(
+    fn predict_classes(
         &self,
         points: &Vec<Vec<f32>>,
         thread_count: usize,
@@ -135,6 +126,27 @@ impl Knn {
         });
 
         results
+    }
+}
+impl KnnCpu {
+    // TODO: make this replaceable somehow (maybe with generics?)
+    fn calc_distance(a: &[f32], b: &[f32]) -> f32 {
+        let mut distance = 0.0;
+        for (a_item, b_item) in a.iter().zip(b) {
+            distance += (a_item - b_item).powf(2.0);
+        }
+
+        distance.sqrt()
+    }
+
+    fn predict_classes_thread(
+        &self,
+        points: &[Vec<f32>],
+        results: &mut [Label],
+    ) {
+        for (index, point) in points.iter().enumerate() {
+            results[index] = self.predict_class(point);
+        }
     }
 }
 

@@ -22,7 +22,7 @@ use plotters::{
 };
 
 use lib::{
-    knn::data_structs{Knn, Label},
+    knn::{Knn, KnnLib, Label},
     rng::{box_muller, Rng},
 };
 
